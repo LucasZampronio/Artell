@@ -31,7 +31,7 @@ class ArtworkAnalysisResponse(BaseModel):
     emotions: Optional[List[str]] = None
     processing_time: float
     cached: bool = False
-    image_url: Optional[str] = None # <-- O campo já está aqui, o que é ótimo
+    image_url: Optional[str] = None
 
 class ArtworkAnalysisDB(BaseModel):
     """Modelo que representa um documento na coleção do MongoDB."""

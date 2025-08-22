@@ -161,7 +161,7 @@ class DatabaseService:
             year=doc.get("year"),
             style=doc.get("style"),
             emotions=doc.get("emotions", []),
-            image_url=doc.get("image_url"), # <-- ✨ ADICIONADO O CAMPO EM FALTA
+            image_url=doc.get("image_url"), # <-- ✨ CORREÇÃO AQUI
             processing_time=doc.get("processing_time", 0.0),
             cached=cached
         )
