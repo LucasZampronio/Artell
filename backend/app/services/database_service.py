@@ -114,7 +114,6 @@ class DatabaseService:
             logger.error(f"Erro ao buscar análise por ID: {e}")
             return None
 
-    # ✨✨ INÍCIO DO CÓDIGO CORRIGIDO ✨✨
     async def get_analyses(
         self, 
         page: int = 1, 
@@ -142,7 +141,6 @@ class DatabaseService:
         except Exception as e:
             logger.error(f"Erro ao buscar análises paginadas: {e}")
             return [], 0
-    # ✨✨ FIM DO CÓDIGO CORRIGIDO ✨✨
 
     async def get_analysis_stats(self) -> dict:
         try:
@@ -154,6 +152,7 @@ class DatabaseService:
             return {"total_analyses": 0}
             
     def _convert_to_response(self, doc: dict, cached: bool) -> ArtworkAnalysisResponse:
+        """Converte documento da base de dados para resposta da API."""
         return ArtworkAnalysisResponse(
             id=str(doc['_id']),
             artwork_name=doc["artwork_name"],
@@ -162,6 +161,7 @@ class DatabaseService:
             year=doc.get("year"),
             style=doc.get("style"),
             emotions=doc.get("emotions", []),
+            image_url=doc.get("image_url"), # <-- ✨ ADICIONADO O CAMPO EM FALTA
             processing_time=doc.get("processing_time", 0.0),
             cached=cached
         )
