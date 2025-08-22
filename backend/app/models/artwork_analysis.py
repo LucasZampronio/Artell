@@ -43,6 +43,19 @@ class ArtworkAnalysisResponse(BaseModel):
     processing_time: float = Field(..., description="Tempo de processamento em segundos")
     cached: bool = Field(False, description="Indica se a análise veio do cache")
 
+class ArtworkAnalysisCreate(BaseModel):
+    """
+    Modelo para validar os dados de uma nova análise antes de serem guardados.
+    """
+    artwork_name: str
+    analysis: str
+    artist: Optional[str] = None
+    year: Optional[str] = None
+    style: Optional[str] = None
+    emotions: Optional[List[str]] = None
+    processing_time: float
+    image_hash: Optional[str] = None
+
 class ArtworkAnalysisDB(BaseModel):
     """Modelo que representa um documento na coleção do MongoDB."""
     artwork_name: str

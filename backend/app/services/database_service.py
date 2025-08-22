@@ -5,7 +5,7 @@ from typing import Optional, List
 from motor.motor_asyncio import AsyncIOMotorClient
 from bson import ObjectId
 from app.core.config import settings
-from app.models.artwork_analysis import ArtworkAnalysisDB, ArtworkAnalysisResponse, ArtworkAnalysisCreate # Assegure-se de ter o ArtworkAnalysisCreate
+from app.models.artwork_analysis import ArtworkAnalysisDB, ArtworkAnalysisResponse, ArtworkAnalysisCreate
 from functools import lru_cache
 
 logger = logging.getLogger(__name__)
@@ -41,15 +41,13 @@ class DatabaseService:
         try:
             collection = self.db[self.collection_name]
             await collection.create_index("artwork_name")
-            await collection.create_index("image_hash") # ✨ Adicionar índice para o hash
+            await collection.create_index("image_hash")
             await collection.create_index("created_at")
             await collection.create_index("artist")
             logger.info("✅ Índices criados com sucesso!")
         except Exception as e:
             logger.error(f"❌ Erro ao criar índices: {e}")
             logger.warning("⚠️ Aplicação continuará sem índices otimizados")
-
-    # ✨✨ INÍCIO DO CÓDIGO ADICIONADO ✨✨
 
     async def get_analysis_by_image_hash(self, image_hash: str) -> Optional[ArtworkAnalysisResponse]:
         """
@@ -68,8 +66,6 @@ class DatabaseService:
             logger.error(f"Erro ao buscar análise por hash de imagem: {e}")
             return None
 
-    # ✨✨ FIM DO CÓDIGO ADICIONADO ✨✨
-
     async def get_analysis_by_name(self, artwork_name: str) -> Optional[ArtworkAnalysisResponse]:
         """Busca uma análise existente na base de dados"""
         try:
@@ -85,8 +81,6 @@ class DatabaseService:
             logger.error(f"Erro ao buscar análise por nome: {e}")
             return None
     
-    # ✨✨ INÍCIO DO CÓDIGO MODIFICADO ✨✨
-
     async def save_analysis(self, analysis_data: dict, image_hash: Optional[str] = None) -> ArtworkAnalysisResponse:
         """
         Salva uma nova análise na base de dados, opcionalmente com um hash de imagem.
@@ -94,12 +88,10 @@ class DatabaseService:
         try:
             collection = self.db[self.collection_name]
             
-            # Adicionar o hash se ele for fornecido
             if image_hash:
                 analysis_data['image_hash'] = image_hash
 
-            # Usar um modelo Pydantic para garantir que os dados estão corretos antes de inserir
-            analysis_doc = ArtworkAnalysisDB(**analysis_data)
+            analysis_doc = ArtworkAnalysisCreate(**analysis_data)
             analysis_dict = analysis_doc.dict()
             
             result = await collection.insert_one(analysis_dict)
@@ -112,8 +104,6 @@ class DatabaseService:
         except Exception as e:
             logger.error(f"Erro ao salvar análise: {e}")
             raise Exception(f"Erro ao salvar análise: {str(e)}")
-
-    # ✨✨ FIM DO CÓDIGO MODIFICADO ✨✨
     
     async def get_recent_analyses(self, limit: int = 10) -> List[ArtworkAnalysisResponse]:
         """Obtém as análises mais recentes"""
@@ -125,22 +115,73 @@ class DatabaseService:
         except Exception as e:
             logger.error(f"Erro ao buscar análises recentes: {e}")
             return []
-    
+
+    async def get_analysis_by_id(self, analysis_id: str) -> Optional[ArtworkAnalysisResponse]:
+        """Busca uma análise específica na base de dados pelo seu ID."""
+        try:
+            collection = self.db[self.collection_name]
+            if not ObjectId.is_valid(analysis_id):
+                logger.warning(f"Tentativa de busca com ID inválido: {analysis_id}")
+                return None
+            result = await collection.find_one({"_id": ObjectId(analysis_id)})
+            if result:
+                logger.info(f"Análise encontrada por ID: {analysis_id}")
+                return self._convert_to_response(result, cached=True)
+            return None
+        except Exception as e:
+            logger.error(f"Erro ao buscar análise por ID: {e}")
+            return None
+
+    async def get_analyses(
+        self, 
+        page: int = 1, 
+        limit: int = 10,
+        artwork_name: Optional[str] = None,
+        artist_name: Optional[str] = None,
+        style: Optional[str] = None
+    ) -> List[ArtworkAnalysisResponse]:
+        # Para simplificar, vou fornecer uma implementação básica.
+        # Numa versão completa, a paginação e os filtros seriam mais complexos.
+        try:
+            collection = self.db[self.collection_name]
+            query = {}
+            if artwork_name:
+                query["artwork_name"] = {"$regex": artwork_name, "$options": "i"}
+            if artist_name:
+                query["artist"] = {"$regex": artist_name, "$options": "i"}
+            if style:
+                query["style"] = {"$regex": style, "$options": "i"}
+
+            skip_count = (page - 1) * limit
+            cursor = collection.find(query).skip(skip_count).limit(limit)
+            analyses = [self._convert_to_response(doc, cached=True) async for doc in cursor]
+            return analyses
+        except Exception as e:
+            logger.error(f"Erro ao buscar análises paginadas: {e}")
+            return []
+
+    async def get_analysis_stats(self) -> dict:
+        try:
+            collection = self.db[self.collection_name]
+            total = await collection.count_documents({})
+            return {"total_analyses": total}
+        except Exception as e:
+            logger.error(f"Erro ao buscar estatísticas: {e}")
+            return {"total_analyses": 0}
+
     def _convert_to_response(self, doc: dict, cached: bool) -> ArtworkAnalysisResponse:
-        """Converte documento da base de dados para resposta da API"""
         return ArtworkAnalysisResponse(
-            id = str(doc['_id']),
+            id=str(doc['_id']),
             artwork_name=doc["artwork_name"],
             analysis=doc["analysis"],
             artist=doc.get("artist"),
             year=doc.get("year"),
             style=doc.get("style"),
             emotions=doc.get("emotions", []),
-            processing_time=doc.get("processing_time", 0.0), # Adicionar default
+            processing_time=doc.get("processing_time", 0.0),
             cached=cached
         )
 
 @lru_cache()
 def get_database_service() -> DatabaseService:
-    """Retorna uma instância singleton do DatabaseService."""
     return DatabaseService()

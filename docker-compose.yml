@@ -34,6 +34,7 @@ services:
     environment:
       - MONGODB_URI=mongodb://admin:password123@db:27017/artell?authSource=admin
       - GROQ_API_KEY=${GROQ_API_KEY}
+      - GROQ_VISION_MODEL=${GROQ_VISION_MODEL}
       - DEBUG=True
     depends_on:
       - db
