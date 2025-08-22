@@ -89,7 +89,7 @@ class GroqService:
           "style": "Estilo Artístico",
           "analysis": "Uma análise profunda da obra.",
           "emotions": ["lista", "de", "3 a 5", "emoções", "chave"],
-          "image_url": "URL público e acessível de uma imagem da obra de arte. O link DEVE ser direto para o ficheiro da imagem (terminando em .jpg, .png, ou .webp), por exemplo de um site como a Wikipedia/Wikimedia Commons. Não retorne um link para uma página web."
+          "image_url": "URL público e acessível de uma imagem da obra de arte. O link DEVE ser direto para o ficheiro da imagem (terminando em .jpg, .png, ou .webp) Não retorne um link para uma página web."
         }}
         NÃO inclua markdown (```json ... ```) ou qualquer outro texto fora do objeto JSON.
         """
