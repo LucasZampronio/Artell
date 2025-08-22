@@ -18,11 +18,8 @@ class GroqService:
         self.api_key_text = settings.GROQ_API_KEY
         self.api_key_image = settings.GROQ_IMAGE_API_KEY or settings.GROQ_API_KEY
         self.base_url = "https://api.groq.com/openai/v1"
-        
-        # Ler os modelos a partir do config.py
         self.text_model = settings.GROQ_TEXT_MODEL
         self.vision_model = settings.GROQ_VISION_MODEL
-        
         self.max_tokens = settings.GROQ_MAX_TOKENS
         self.temperature = settings.GROQ_TEMPERATURE
 
@@ -40,7 +37,7 @@ class GroqService:
             return analysis_data
         except Exception as e:
             logger.error(f"Erro na análise da obra {artwork_name}: {str(e)}")
-            raise Exception(f"Erro na análise da obra: {str(e)}")
+            raise
 
     async def analyze_artwork_from_image(self, image_data: bytes) -> Dict[str, Any]:
         """Analisa uma obra de arte a partir de uma imagem usando o modelo de visão."""
@@ -57,7 +54,7 @@ class GroqService:
             return analysis_data
         except Exception as e:
             logger.error(f"Erro na análise da imagem: {str(e)}")
-            raise Exception(f"Erro na análise da imagem: {str(e)}")
+            raise
 
     async def identify_artwork_from_image(self, image_data: bytes) -> Optional[Dict[str, str]]:
         """Identifica o nome de uma obra de arte a partir de uma imagem."""
@@ -80,51 +77,34 @@ class GroqService:
     
     def _build_powerful_analysis_prompt(self, artwork_name: str) -> str:
         return f"""
-        Aja como um analista de arte cultural, similar ao Songtell, mas para artes visuais. Sua tarefa é desvendar a mensagem central e o contexto humano por trás da obra de arte "{artwork_name}". A análise deve ser direta, poderosa e reveladora.
+        Aja como um analista de arte cultural. Sua tarefa é desvendar a mensagem central por trás da obra "{artwork_name}".
 
-        Responda OBRIGATORIAMENTE com um objeto JSON válido.
-        A estrutura do JSON deve ser:
+        Responda OBRIGATORIAMENTE com um objeto JSON válido com a estrutura:
         {{
           "artwork_name": "Nome da Obra (confirmado pela IA)",
           "artist": "Nome do Artista",
           "year": "Ano de Criação",
-          "style": "Estilo Artístico principal"
-          "analysis": "Comece com um parágrafo de abertura que define a obra e sua tese central, Em seguida, dedique um parágrafo para analisar o primeiro elemento visual chave (ex: a figura central, o cenário, cores, expressão, formas), explicando seu papel na narrativa. Depois, um segundo parágrafo para analisar outro elemento visual importante (ex: o uso da luz, um símbolo específico), conectando-o ao tema. Conclua com um parágrafo final que resume o impacto geral e a mensagem duradoura da obra. Faça tudo em um unico paragrafo e tente ocupar o minimo de linhas com o maximo de significado",
-          "emotions": ["lista", "de", "3 a 5", "emoções", "chave", "em português", "lowercase", "ex: 'Tristeza', 'Resiliência', 'Esperança'"]
+          "style": "Estilo Artístico",
+          "analysis": "Uma análise profunda da obra.",
+          "emotions": ["lista", "de", "3 a 5", "emoções", "chave"]
         }}
-
-        Se a obra for sobre um contexto social ou histórico específico, certifique-se de que a análise reflita isso de forma proeminente.
         NÃO inclua markdown (```json ... ```) ou qualquer outro texto fora do objeto JSON.
         """
 
     def _build_identification_prompt(self) -> str:
-        """Cria um prompt simples e direto para apenas identificar a obra."""
+        """Cria um prompt simples para identificar a obra."""
         return """
         Sua única tarefa é identificar a obra de arte na imagem.
-        Responda OBRIGATORIAMENTE com um objeto JSON válido com a seguinte estrutura:
-        {
-          "artwork_name": "Nome da Obra"
-        }
-        Se você não conseguir identificar a obra, responda com "Desconhecido".
-        NÃO inclua nenhuma outra informação, apenas o JSON.
+        Responda OBRIGATORIAMENTE com um objeto JSON válido com a estrutura:
+        { "artwork_name": "Nome da Obra" }
+        Se não conseguir identificar, responda com "Desconhecido".
         """
 
     def _build_vision_payload(self, prompt: str, base64_image: str, max_tokens: Optional[int] = None) -> Dict[str, Any]:
-        """Constrói o payload para uma requisição de visão (com imagem)."""
+        """Constrói o payload para uma requisição de visão."""
         return {
             "model": self.vision_model,
-            "messages": [
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": prompt},
-                        {
-                            "type": "image_url",
-                            "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}
-                        }
-                    ]
-                }
-            ],
+            "messages": [{"role": "user", "content": [{"type": "text", "text": prompt}, {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}]}],
             "max_tokens": max_tokens or self.max_tokens,
             "temperature": self.temperature,
             "response_format": {"type": "json_object"}
@@ -134,68 +114,51 @@ class GroqService:
         """Constrói o payload para uma requisição de texto."""
         return {
             "model": self.text_model,
-            "messages": [
-                {"role": "user", "content": prompt}
-            ],
+            "messages": [{"role": "user", "content": prompt}],
             "max_tokens": self.max_tokens,
             "temperature": self.temperature,
             "response_format": {"type": "json_object"}
         }
 
     async def _call_groq_api(self, payload: Dict[str, Any], is_vision: bool = False) -> str:
-        """Faz a chamada à API da Groq com o payload e tipo de modelo corretos."""
+        """Faz a chamada à API da Groq."""
         try:
             api_key_to_use = self.api_key_image if is_vision else self.api_key_text
-            headers = {
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {api_key_to_use}"
-            }
+            headers = {"Content-Type": "application/json", "Authorization": f"Bearer {api_key_to_use}"}
             async with httpx.AsyncClient(timeout=90.0) as client:
-                response = await client.post(
-                    f"{self.base_url}/chat/completions",
-                    headers=headers,
-                    json=payload
-                )
+                response = await client.post(f"{self.base_url}/chat/completions", headers=headers, json=payload)
                 response.raise_for_status()
                 response_data = response.json()
                 return response_data["choices"][0]["message"]["content"]
-        except httpx.TimeoutException:
-            logger.error("Timeout na chamada à API da Groq")
-            raise Exception("Timeout na comunicação com a Groq")
         except httpx.HTTPStatusError as e:
             logger.error(f"Erro na API Groq: {e.response.status_code} - {e.response.text}")
-            raise Exception(f"Erro na API Groq: {e.response.status_code}")
+            raise
         except Exception as e:
             logger.error(f"Erro na chamada à API da Groq: {str(e)}")
-            raise Exception(f"Erro na comunicação com a Groq: {str(e)}")
-            
+            raise
+
+    # ✨✨ INÍCIO DO CÓDIGO CORRIGIDO ✨✨
     def _extract_analysis_data(self, response_text: str, original_artwork_name: str, processing_time: float) -> Dict[str, Any]:
         try:
             data = json.loads(response_text)
-
+            
             year_from_ai = data.get("year")
             if year_from_ai is not None:
                 year_from_ai = str(year_from_ai)
+
             return {
                 "artwork_name": data.get("artwork_name", original_artwork_name),
                 "analysis": data.get("analysis", "Análise não disponível.").strip(),
                 "artist": data.get("artist"),
-                "year": data.get("year"),
+                "year": year_from_ai,
                 "style": data.get("style"),
                 "emotions": data.get("emotions", []),
                 "processing_time": processing_time
             }
         except json.JSONDecodeError:
-            logger.error(f"Erro ao descodificar JSON da Groq. Resposta recebida: {response_text}")
-            return {
-                "artwork_name": original_artwork_name,
-                "analysis": "A IA não conseguiu estruturar a análise, mas a mensagem central parece ser um poderoso manifesto sobre resiliência e a condição humana.",
-                "artist": "Desconhecido",
-                "year": "Desconhecido",
-                "style": "Contestatário",
-                "emotions": ["struggle", "resilience", "hope"],
-                "processing_time": processing_time
-            }
+            logger.error(f"Erro ao descodificar JSON da Groq. Resposta: {response_text}")
+            return {"artwork_name": original_artwork_name, "analysis": "A IA retornou uma resposta em formato inválido.", "processing_time": processing_time}
+    # ✨✨ FIM DO CÓDIGO CORRIGIDO ✨✨
 
 @lru_cache()
 def get_groq_service() -> GroqService:

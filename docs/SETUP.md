@@ -1,281 +1,110 @@
-# 🎨 Setup do Projeto Artell
+Artell: Analisador de Arte com IA
+Artell é uma aplicação web que utiliza inteligência artificial para realizar análises detalhadas de obras de arte. Os usuários podem submeter imagens ou descrições textuais de obras e receber insights sobre estilo, contexto histórico, técnica e possíveis interpretações.
 
-Este guia irá ajudá-lo a configurar e executar o projeto Artell em sua máquina local.
+![Imagem de uma galeria de arte digital]
 
-## 📋 Pré-requisitos
+✨ Funcionalidades
+Análise por Imagem: Envie uma imagem de uma obra de arte para receber uma análise completa.
 
-Antes de começar, certifique-se de ter instalado:
+Análise por Texto: Descreva uma obra de arte para que a IA gere uma análise baseada na sua descrição.
 
-- **Python 3.11+** - [Download Python](https://www.python.org/downloads/)
-- **Node.js 18+** - [Download Node.js](https://nodejs.org/)
-- **Docker** - [Download Docker](https://www.docker.com/products/docker-desktop/)
-- **Git** - [Download Git](https://git-scm.com/)
+Galeria de Análises: Navegue por todas as análises já realizadas e salvas na plataforma.
 
-## 🚀 Configuração Rápida
+Interface Responsiva: Acesse a aplicação de forma otimizada em desktops, tablets e dispositivos móveis.
 
-### 1. Clone o Repositório
-```bash
-git clone <repository-url>
-cd Artell
-```
+🛠️ Tecnologias Utilizadas
+A aplicação é construída com uma arquitetura moderna, separando o frontend do backend.
 
-### 2. Execute o Script de Setup
+Backend:
 
-**Linux/Mac:**
-```bash
-chmod +x scripts/setup.sh
+Framework: FastAPI (Python)
+
+Inteligência Artificial: API da Groq
+
+Banco de Dados: MongoDB
+
+Frontend:
+
+Framework: React (com TypeScript)
+
+Build Tool: Vite
+
+Estilização: Tailwind CSS
+
+Containerização:
+
+Docker e Docker Compose
+
+🚀 Como Executar o Projeto
+Siga os passos abaixo para configurar e executar o ambiente de desenvolvimento localmente.
+
+Pré-requisitos
+Docker
+
+Docker Compose
+
+1. Variáveis de Ambiente
+Antes de iniciar, crie um arquivo chamado .env na raiz do projeto. Copie o conteúdo abaixo e preencha com suas chaves e credenciais.
+
+# Chave da API do Groq para o serviço de IA
+GROQ_API_KEY=sua_chave_api_aqui
+
+# Credenciais para o banco de dados MongoDB
+MONGO_INITDB_ROOT_USERNAME=root
+MONGO_INITDB_ROOT_PASSWORD=example
+MONGO_INITDB_DATABASE=artell
+MONGODB_URI=mongodb://root:example@mongo:27017/
+
+2. Script de Setup
+O projeto inclui um script que automatiza a construção dos containers Docker e a instalação de dependências.
+
+No Windows:
+
+.\scripts\setup.bat
+
+No Linux ou macOS:
+
+chmod +x ./scripts/setup.sh
 ./scripts/setup.sh
-```
 
-**Windows:**
-```cmd
-scripts\setup.bat
-```
+Este comando irá iniciar todos os serviços necessários (frontend, backend e banco de dados) usando o Docker Compose.
 
-O script irá:
-- ✅ Verificar dependências
-- 🐍 Configurar ambiente Python
-- ⚛️ Instalar dependências React
-- 🗄️ Iniciar MongoDB com Docker
-- 📝 Criar arquivo de configuração
+3. Acessando a Aplicação
+Após a execução do script, a aplicação estará disponível nos seguintes endereços:
 
-## 🔧 Configuração Manual
+Frontend: http://localhost:5173
 
-Se preferir configurar manualmente ou se o script automático falhar:
+Documentação da API (Swagger): http://localhost:8000/docs
 
-### Backend Python
-
-1. **Crie ambiente virtual:**
-```bash
-cd backend
-python -m venv venv
-```
-
-2. **Ative o ambiente:**
-```bash
-# Linux/Mac
-source venv/bin/activate
-
-# Windows
-venv\Scripts\activate
-```
-
-3. **Instale dependências:**
-```bash
-pip install -r requirements.txt
-```
-
-4. **Configure variáveis de ambiente:**
-```bash
-cp env.example .env
-# Edite .env com suas configurações
-```
-
-### Frontend React
-
-1. **Instale dependências:**
-```bash
-cd frontend
-npm install
-```
-
-### MongoDB
-
-1. **Inicie com Docker:**
-```bash
-docker-compose up -d mongodb
-```
-
-## ⚙️ Configuração das Variáveis de Ambiente
-
-Edite o arquivo `backend/.env`:
-
-```env
-# OpenAI Configuration
-OPENAI_API_KEY=your_openai_api_key_here
-
-# MongoDB Configuration
-MONGODB_URI=mongodb://localhost:27017/artell
-
-# Security
-SECRET_KEY=your_secret_key_here
-ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=30
-
-# App Configuration
-APP_NAME=Artell
-APP_VERSION=1.0.0
-DEBUG=True
-
-# CORS
-ALLOWED_ORIGINS=["http://localhost:3000", "http://localhost:5173"]
-```
-
-### 🔑 Obter OpenAI API Key
-
-1. Acesse [OpenAI Platform](https://platform.openai.com/)
-2. Faça login ou crie uma conta
-3. Vá para "API Keys"
-4. Crie uma nova chave
-5. Copie a chave para `OPENAI_API_KEY`
-
-## 🚀 Executando o Projeto
-
-### 1. Inicie o Backend
-```bash
-cd backend
-source venv/bin/activate  # Linux/Mac
-# ou
-venv\Scripts\activate     # Windows
-
-uvicorn main:app --reload
-```
-
-O backend estará disponível em: http://localhost:8000
-Documentação da API: http://localhost:8000/docs
-
-### 2. Inicie o Frontend
-```bash
-cd frontend
-npm run dev
-```
-
-O frontend estará disponível em: http://localhost:3000
-
-### 3. MongoDB
-```bash
-# Verificar status
-docker-compose ps
-
-# Acessar logs
-docker-compose logs mongodb
-
-# Interface web (opcional)
-# http://localhost:8081 (admin/password123)
-```
-
-## 🧪 Testando a Aplicação
-
-1. **Acesse** http://localhost:5173
-2. **Teste análise por imagem:**
-   - Vá para "Analisar Imagem"
-   - Faça upload de uma imagem de obra de arte
-   - Clique em "Analisar com IA"
-3. **Teste análise por texto:**
-   - Vá para "Pesquisar Obra"
-   - Digite "Mona Lisa"
-   - Clique em "Pesquisar e Analisar"
-
-## 📁 Estrutura do Projeto
-
-```
-Artell/
-├── backend/                 # API FastAPI
+📁 Estrutura do Projeto
+artell/
+├── backend/         # Contém a API em FastAPI (Python)
 │   ├── app/
-│   │   ├── core/           # Configuração e base de dados
-│   │   ├── models/         # Modelos Pydantic
-│   │   ├── routers/        # Endpoints da API
-│   │   └── services/       # Lógica de negócio
-│   ├── main.py             # Aplicação principal
-│   ├── requirements.txt    # Dependências Python
-│   └── env.example         # Variáveis de ambiente
-├── frontend/               # Aplicação React
+│   │   ├── core/      # Configuração, banco de dados
+│   │   ├── models/    # Modelos de dados (Pydantic)
+│   │   ├── routers/   # Endpoints da API (rotas)
+│   │   └── services/  # Lógica de negócio
+│   ├── main.py      # Ponto de entrada da API
+│   └── Dockerfile
+├── frontend/        # Contém a aplicação em React (TypeScript)
 │   ├── src/
-│   │   ├── components/     # Componentes reutilizáveis
-│   │   ├── pages/          # Páginas da aplicação
-│   │   ├── App.tsx         # Componente principal
-│   │   └── main.tsx        # Ponto de entrada
-│   ├── package.json        # Dependências Node.js
-│   └── tailwind.config.js  # Configuração Tailwind
-├── scripts/                # Scripts de setup
-├── docs/                   # Documentação
-├── docker-compose.yml      # Orquestração Docker
-└── README.md               # Documentação principal
-```
+│   │   ├── components/
+│   │   ├── hooks/
+│   │   └── pages/
+│   └── Dockerfile
+├── docs/            # Documentação adicional
+├── scripts/         # Scripts de inicialização e setup
+└── docker-compose.yml # Orquestração dos containers
 
-## 🔍 Endpoints da API
+🔌 Endpoints da API
+A API do backend oferece os seguintes endpoints principais:
 
-- `POST /api/analyze/image` - Analisa obra por imagem
-- `POST /api/analyze/text` - Analisa obra por nome
-- `GET /api/analyses` - Lista análises
-- `GET /api/analyses/{id}` - Obtém análise específica
-- `GET /api/analyses/stats/summary` - Estatísticas
+POST /api/analyze/image: Submete uma imagem para análise.
 
-## 🐛 Solução de Problemas
+POST /api/analyze/text: Submete uma descrição textual para análise.
 
-### Erro de Conexão com MongoDB
-```bash
-# Verificar se o container está rodando
-docker-compose ps
+GET /api/analyses/: Retorna a lista de todas as análises salvas.
 
-# Reiniciar MongoDB
-docker-compose restart mongodb
+GET /api/analyses/{id}: Retorna uma análise específica pelo seu ID.
 
-# Ver logs
-docker-compose logs mongodb
-```
-
-### Erro de Dependências Python
-```bash
-cd backend
-rm -rf venv
-python -m venv venv
-source venv/bin/activate  # ou venv\Scripts\activate no Windows
-pip install -r requirements.txt
-```
-
-### Erro de Dependências Node.js
-```bash
-cd frontend
-rm -rf node_modules package-lock.json
-npm install
-```
-
-### Porta já em uso
-```bash
-# Verificar processos nas portas
-lsof -i :8000  # Linux/Mac
-netstat -ano | findstr :8000  # Windows
-
-# Matar processo
-kill -9 <PID>  # Linux/Mac
-taskkill /PID <PID> /F  # Windows
-```
-
-## 📚 Recursos Adicionais
-
-- [FastAPI Documentation](https://fastapi.tiangolo.com/)
-- [React Documentation](https://react.dev/)
-- [Tailwind CSS](https://tailwindcss.com/)
-- [MongoDB Documentation](https://docs.mongodb.com/)
-- [OpenAI API Documentation](https://platform.openai.com/docs)
-
-## 🤝 Contribuição
-
-1. Fork o projeto
-2. Crie uma branch para sua feature
-3. Commit suas mudanças
-4. Push para a branch
-5. Abra um Pull Request
-
-## 📄 Licença
-
-Este projeto está sob a licença MIT.
-
----
-
-**Boa sorte com o seu projeto Artell! 🎨✨**
-
-useArtImageAnalysis: Este novo hook é muito parecido com o useArtAnalysis, mas a sua função principal, analyzeImage, está configurada para enviar um ficheiro.
-
-FormData: Esta é a forma padrão e correta de enviar ficheiros (como imagens) em requisições web. Criamos um objeto FormData e adicionamos o nosso ficheiro a ele com a chave 'file', que é o nome que o nosso endpoint FastAPI espera.
-
-Endpoint e Navegação: A lógica de chamar o endpoint /analise-por-imagem e navegar para a página de resultados (/analysis/:id) é a mesma, garantindo consistência na experiência do utilizador.
-
-Importação: Importamos useArtImageAnalysis para ter acesso à lógica de chamada da API.
-
-Instanciação: Chamamos o hook para obter isLoading, error, e a nossa função analyzeImage.
-
-Chamada da API: A função handleAnalyze agora simplesmente chama analyzeImage(selectedFile), delegando toda a complexidade para o hook.
-
-Feedback ao Utilizador: O botão agora reflete o estado isLoading do hook, mostrando uma mensagem de "A analisar..." e desativando-se durante a chamada à API. Uma mensagem de erro também é exibida se algo correr mal.
+Para mais detalhes, acesse a documentação interativa do Swagger após iniciar o projeto.

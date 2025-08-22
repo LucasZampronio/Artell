@@ -133,15 +133,11 @@ class DatabaseService:
             if style:
                 query["style"] = {"$regex": style, "$options": "i"}
 
-            # Contar o total de documentos que correspondem à pesquisa
             total = await collection.count_documents(query)
-
-            # Obter os documentos paginados
             skip_count = (page - 1) * limit
             cursor = collection.find(query).skip(skip_count).limit(limit)
             analyses = [self._convert_to_response(doc, cached=True) async for doc in cursor]
             
-            # Devolver a lista E o total
             return analyses, total
         except Exception as e:
             logger.error(f"Erro ao buscar análises paginadas: {e}")
