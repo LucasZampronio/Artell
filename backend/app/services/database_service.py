@@ -1,7 +1,7 @@
 # backend/app/services/database_service.py
 
 import logging
-from typing import Optional, List
+from typing import Optional, List, Tuple
 from motor.motor_asyncio import AsyncIOMotorClient
 from bson import ObjectId
 from app.core.config import settings
@@ -19,7 +19,6 @@ class DatabaseService:
         self.collection_name = "artwork_analyses"
     
     async def connect(self):
-        """Conecta à base de dados MongoDB"""
         try:
             self.client = AsyncIOMotorClient(settings.MONGODB_URI)
             self.db = self.client.artell
@@ -31,13 +30,11 @@ class DatabaseService:
             raise e
     
     async def disconnect(self):
-        """Desconecta da base de dados"""
         if self.client:
             self.client.close()
             logger.info("✅ Conexão com MongoDB fechada!")
     
     async def _create_indexes(self):
-        """Cria índices para otimizar consultas"""
         try:
             collection = self.db[self.collection_name]
             await collection.create_index("artwork_name")
@@ -50,24 +47,18 @@ class DatabaseService:
             logger.warning("⚠️ Aplicação continuará sem índices otimizados")
 
     async def get_analysis_by_image_hash(self, image_hash: str) -> Optional[ArtworkAnalysisResponse]:
-        """
-        Busca uma análise existente na base de dados pelo hash da imagem.
-        """
         try:
             collection = self.db[self.collection_name]
             result = await collection.find_one({"image_hash": image_hash})
-            
             if result:
                 logger.info(f"Análise encontrada em cache pelo hash da imagem: {image_hash[:10]}...")
                 return self._convert_to_response(result, cached=True)
-            
             return None
         except Exception as e:
             logger.error(f"Erro ao buscar análise por hash de imagem: {e}")
             return None
 
     async def get_analysis_by_name(self, artwork_name: str) -> Optional[ArtworkAnalysisResponse]:
-        """Busca uma análise existente na base de dados"""
         try:
             collection = self.db[self.collection_name]
             result = await collection.find_one({
@@ -82,31 +73,25 @@ class DatabaseService:
             return None
     
     async def save_analysis(self, analysis_data: dict, image_hash: Optional[str] = None) -> ArtworkAnalysisResponse:
-        """
-        Salva uma nova análise na base de dados, opcionalmente com um hash de imagem.
-        """
         try:
             collection = self.db[self.collection_name]
-            
             if image_hash:
                 analysis_data['image_hash'] = image_hash
 
-            analysis_doc = ArtworkAnalysisCreate(**analysis_data)
+            analysis_to_create = ArtworkAnalysisCreate(**analysis_data)
+            analysis_doc = ArtworkAnalysisDB(**analysis_to_create.dict())
             analysis_dict = analysis_doc.dict()
             
             result = await collection.insert_one(analysis_dict)
-            
             analysis_dict["_id"] = result.inserted_id
             
             logger.info(f"Análise salva na base de dados: {analysis_data['artwork_name']}")
             return self._convert_to_response(analysis_dict, cached=False)
-            
         except Exception as e:
             logger.error(f"Erro ao salvar análise: {e}")
             raise Exception(f"Erro ao salvar análise: {str(e)}")
     
     async def get_recent_analyses(self, limit: int = 10) -> List[ArtworkAnalysisResponse]:
-        """Obtém as análises mais recentes"""
         try:
             collection = self.db[self.collection_name]
             cursor = collection.find().sort("created_at", -1).limit(limit)
@@ -117,21 +102,19 @@ class DatabaseService:
             return []
 
     async def get_analysis_by_id(self, analysis_id: str) -> Optional[ArtworkAnalysisResponse]:
-        """Busca uma análise específica na base de dados pelo seu ID."""
         try:
             collection = self.db[self.collection_name]
             if not ObjectId.is_valid(analysis_id):
-                logger.warning(f"Tentativa de busca com ID inválido: {analysis_id}")
                 return None
             result = await collection.find_one({"_id": ObjectId(analysis_id)})
             if result:
-                logger.info(f"Análise encontrada por ID: {analysis_id}")
                 return self._convert_to_response(result, cached=True)
             return None
         except Exception as e:
             logger.error(f"Erro ao buscar análise por ID: {e}")
             return None
 
+    # ✨✨ INÍCIO DO CÓDIGO CORRIGIDO ✨✨
     async def get_analyses(
         self, 
         page: int = 1, 
@@ -139,9 +122,7 @@ class DatabaseService:
         artwork_name: Optional[str] = None,
         artist_name: Optional[str] = None,
         style: Optional[str] = None
-    ) -> List[ArtworkAnalysisResponse]:
-        # Para simplificar, vou fornecer uma implementação básica.
-        # Numa versão completa, a paginação e os filtros seriam mais complexos.
+    ) -> Tuple[List[ArtworkAnalysisResponse], int]:
         try:
             collection = self.db[self.collection_name]
             query = {}
@@ -152,13 +133,20 @@ class DatabaseService:
             if style:
                 query["style"] = {"$regex": style, "$options": "i"}
 
+            # Contar o total de documentos que correspondem à pesquisa
+            total = await collection.count_documents(query)
+
+            # Obter os documentos paginados
             skip_count = (page - 1) * limit
             cursor = collection.find(query).skip(skip_count).limit(limit)
             analyses = [self._convert_to_response(doc, cached=True) async for doc in cursor]
-            return analyses
+            
+            # Devolver a lista E o total
+            return analyses, total
         except Exception as e:
             logger.error(f"Erro ao buscar análises paginadas: {e}")
-            return []
+            return [], 0
+    # ✨✨ FIM DO CÓDIGO CORRIGIDO ✨✨
 
     async def get_analysis_stats(self) -> dict:
         try:
@@ -168,7 +156,7 @@ class DatabaseService:
         except Exception as e:
             logger.error(f"Erro ao buscar estatísticas: {e}")
             return {"total_analyses": 0}
-
+            
     def _convert_to_response(self, doc: dict, cached: bool) -> ArtworkAnalysisResponse:
         return ArtworkAnalysisResponse(
             id=str(doc['_id']),

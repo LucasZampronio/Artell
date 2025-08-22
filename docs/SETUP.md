@@ -265,3 +265,17 @@ Este projeto está sob a licença MIT.
 ---
 
 **Boa sorte com o seu projeto Artell! 🎨✨**
+
+useArtImageAnalysis: Este novo hook é muito parecido com o useArtAnalysis, mas a sua função principal, analyzeImage, está configurada para enviar um ficheiro.
+
+FormData: Esta é a forma padrão e correta de enviar ficheiros (como imagens) em requisições web. Criamos um objeto FormData e adicionamos o nosso ficheiro a ele com a chave 'file', que é o nome que o nosso endpoint FastAPI espera.
+
+Endpoint e Navegação: A lógica de chamar o endpoint /analise-por-imagem e navegar para a página de resultados (/analysis/:id) é a mesma, garantindo consistência na experiência do utilizador.
+
+Importação: Importamos useArtImageAnalysis para ter acesso à lógica de chamada da API.
+
+Instanciação: Chamamos o hook para obter isLoading, error, e a nossa função analyzeImage.
+
+Chamada da API: A função handleAnalyze agora simplesmente chama analyzeImage(selectedFile), delegando toda a complexidade para o hook.
+
+Feedback ao Utilizador: O botão agora reflete o estado isLoading do hook, mostrando uma mensagem de "A analisar..." e desativando-se durante a chamada à API. Uma mensagem de erro também é exibida se algo correr mal.

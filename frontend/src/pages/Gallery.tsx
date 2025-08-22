@@ -1,63 +1,65 @@
-import { useState } from 'react'
-import { Search, Filter, Calendar, Palette, Heart } from 'lucide-react'
+// frontend/src/pages/Gallery.tsx
+
+import { useState, useMemo } from 'react';
+import { Search, Calendar, Palette, Heart, Loader, AlertTriangle } from 'lucide-react';
+import { Link } from 'react-router-dom';
+
+// ✨ 1. Importar o nosso novo hook
+import { useGallery } from '../hooks/useGallery';
 
 const Gallery = () => {
-  const [searchTerm, setSearchTerm] = useState('')
-  const [selectedStyle, setSelectedStyle] = useState('')
+  // ✨ 2. Usar o hook para obter os dados e estados
+  const { analyses, isLoading, error } = useGallery();
 
-  // Mock data - em produção viria da API
-  const analyses = [
-    {
-      id: '1',
-      artwork_name: 'Mona Lisa',
-      artist_name: 'Leonardo da Vinci',
-      year_created: '1503-1519',
-      style: 'Renaissance',
-      emotions: ['awe', 'mystery', 'peace'],
-      created_at: '2024-01-15T10:30:00Z',
-      analysis_type: 'image'
-    },
-    {
-      id: '2',
-      artwork_name: 'A Noite Estrelada',
-      artist_name: 'Vincent van Gogh',
-      year_created: '1889',
-      style: 'Post-Impressionism',
-      emotions: ['excitement', 'melancholy', 'awe'],
-      created_at: '2024-01-14T15:45:00Z',
-      analysis_type: 'text'
-    },
-    {
-      id: '3',
-      artwork_name: 'O Grito',
-      artist_name: 'Edvard Munch',
-      year_created: '1893',
-      style: 'Expressionism',
-      emotions: ['fear', 'anxiety', 'despair'],
-      created_at: '2024-01-13T09:20:00Z',
-      analysis_type: 'image'
-    }
-  ]
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedStyle, setSelectedStyle] = useState('');
 
-  const styles = ['Renaissance', 'Post-Impressionism', 'Expressionism', 'Cubism', 'Surrealism']
+  // Lógica de filtragem agora usa os dados da API
+  const filteredAnalyses = useMemo(() => {
+    return analyses.filter(analysis => {
+      const matchesSearch = 
+        analysis.artwork_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        analysis.artist?.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesStyle = !selectedStyle || analysis.style === selectedStyle;
+      return matchesSearch && matchesStyle;
+    });
+  }, [analyses, searchTerm, selectedStyle]);
+  
+  // Extrair estilos únicos a partir dos dados recebidos
+  const styles = useMemo(() => {
+      const allStyles = analyses.map(a => a.style).filter(Boolean);
+      return [...new Set(allStyles)] as string[];
+  }, [analyses]);
 
-  const filteredAnalyses = analyses.filter(analysis => {
-    const matchesSearch = analysis.artwork_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         analysis.artist_name?.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesStyle = !selectedStyle || analysis.style === selectedStyle
-    return matchesSearch && matchesStyle
-  })
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('pt-BR')
+  // ✨ 3. Lidar com os estados de carregamento e erro
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-96">
+        <Loader className="w-12 h-12 animate-spin text-primary-600" />
+      </div>
+    );
   }
 
+  if (error) {
+    return (
+      <div className="text-center py-12">
+        <AlertTriangle className="w-16 h-16 text-red-400 mx-auto mb-4" />
+        <h3 className="text-lg font-medium text-red-700 mb-2">
+          Ocorreu um erro
+        </h3>
+        <p className="text-gray-500">{error}</p>
+      </div>
+    );
+  }
+
+  // ✨ 4. Renderizar a galeria com os dados reais
   return (
     <div className="min-h-screen bg-gray-50 py-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">
+          <h1 className="text-4xl font-bold text-gray-900 mb-4 font-serif">
             Galeria de Análises
           </h1>
           <p className="text-xl text-gray-600">
@@ -66,11 +68,11 @@ const Gallery = () => {
         </div>
 
         {/* Filters */}
-        <div className="card mb-8">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
           <div className="grid md:grid-cols-2 gap-6">
             <div>
               <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-2">
-                Pesquisar
+                Pesquisar por Obra ou Artista
               </label>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -79,20 +81,20 @@ const Gallery = () => {
                   id="search"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Nome da obra ou artista..."
-                  className="input-field pl-10"
+                  placeholder="Ex: Mona Lisa..."
+                  className="w-full pl-10 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
             </div>
             <div>
               <label htmlFor="style" className="block text-sm font-medium text-gray-700 mb-2">
-                Estilo Artístico
+                Filtrar por Estilo Artístico
               </label>
               <select
                 id="style"
                 value={selectedStyle}
                 onChange={(e) => setSelectedStyle(e.target.value)}
-                className="input-field"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
               >
                 <option value="">Todos os estilos</option>
                 {styles.map((style) => (
@@ -105,81 +107,79 @@ const Gallery = () => {
           </div>
         </div>
 
-        {/* Results */}
+        {/* Results Grid */}
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredAnalyses.map((analysis) => (
-            <div key={analysis.id} className="card hover:shadow-lg transition-shadow duration-300">
+            <Link to={`/analysis/${analysis.id}`} key={analysis.id} className="block bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-lg hover:border-primary-300 transition-all duration-300">
               <div className="space-y-4">
                 <div>
                   <h3 className="text-xl font-semibold text-gray-900 mb-1">
                     {analysis.artwork_name}
                   </h3>
-                  {analysis.artist_name && (
+                  {analysis.artist && (
                     <p className="text-gray-600">
-                      por {analysis.artist_name}
+                      por {analysis.artist}
                     </p>
                   )}
                 </div>
 
                 <div className="flex items-center space-x-4 text-sm text-gray-500">
-                  {analysis.year_created && (
+                  {analysis.year && (
                     <div className="flex items-center">
-                      <Calendar className="w-4 h-4 mr-1" />
-                      {analysis.year_created}
+                      <Calendar className="w-4 h-4 mr-1.5" />
+                      {analysis.year}
                     </div>
                   )}
                   {analysis.style && (
                     <div className="flex items-center">
-                      <Palette className="w-4 h-4 mr-1" />
+                      <Palette className="w-4 h-4 mr-1.5" />
                       {analysis.style}
                     </div>
                   )}
                 </div>
 
-                <div>
-                  <div className="flex flex-wrap gap-2 mb-3">
-                    {analysis.emotions.map((emotion) => (
-                      <span
-                        key={emotion}
-                        className="px-2 py-1 bg-primary-100 text-primary-800 rounded-full text-xs font-medium"
-                      >
-                        {emotion}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between pt-4 border-t border-gray-200">
-                  <span className="text-sm text-gray-500">
-                    {formatDate(analysis.created_at)}
-                  </span>
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    analysis.analysis_type === 'image' 
-                      ? 'bg-blue-100 text-blue-800' 
-                      : 'bg-green-100 text-green-800'
-                  }`}>
-                    {analysis.analysis_type === 'image' ? 'Imagem' : 'Texto'}
-                  </span>
+                <div className="flex flex-wrap gap-2 pt-2">
+                  {analysis.emotions.slice(0, 3).map((emotion) => (
+                    <span
+                      key={emotion}
+                      className="px-2 py-1 bg-primary-50 text-primary-700 rounded-full text-xs font-medium"
+                    >
+                      {emotion}
+                    </span>
+                  ))}
                 </div>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
 
-        {filteredAnalyses.length === 0 && (
+        {/* Mensagem de "Nenhum resultado" */}
+        {analyses.length > 0 && filteredAnalyses.length === 0 && (
           <div className="text-center py-12">
-            <Heart className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">
               Nenhuma análise encontrada
             </h3>
             <p className="text-gray-500">
-              Tente ajustar os filtros ou faça sua primeira análise!
+              Tente ajustar os seus filtros de pesquisa.
             </p>
           </div>
         )}
+
+        {/* Mensagem de "Galeria Vazia" */}
+        {analyses.length === 0 && !isLoading && (
+           <div className="text-center py-12">
+             <Heart className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+             <h3 className="text-lg font-medium text-gray-900 mb-2">
+               A sua galeria está vazia
+             </h3>
+             <p className="text-gray-500">
+               Comece por fazer a sua primeira análise de uma obra de arte!
+             </p>
+           </div>
+        )}
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default Gallery
+export default Gallery;
