@@ -3,6 +3,7 @@ from typing import Optional, List
 from motor.motor_asyncio import AsyncIOMotorClient
 from app.core.config import settings
 from app.models.artwork_analysis import ArtworkAnalysisDB, ArtworkAnalysisResponse
+from functools import lru_cache
 
 logger = logging.getLogger(__name__)
 

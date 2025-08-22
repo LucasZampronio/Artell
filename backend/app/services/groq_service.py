@@ -3,6 +3,7 @@ import time
 import logging
 from typing import Dict, Any
 from app.core.config import settings
+from functools import lru_cache
 
 logger = logging.getLogger(__name__)
 
