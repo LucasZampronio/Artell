@@ -1,148 +1,130 @@
-from fastapi import APIRouter, HTTPException, UploadFile, File, Form
-from fastapi.responses import JSONResponse
-from typing import Optional
-import logging
-from app.services.ai_service import ai_service
-from app.services.analysis_service import analysis_service
-from app.models.analysis import AnalysisRequest, AnalysisResponse
-from app.core.config import settings
+# /backend/app/routers/analyze.py
 
+from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
+import logging
+
+# Modelos Pydantic para a estrutura dos dados
+from app.models.artwork_analysis import ArtworkAnalysisRequest, ArtworkAnalysisResponse
+
+# Serviços que contêm a lógica de negócio
+from app.services.groq_service import get_groq_service, GroqService
+from app.services.database_service import get_database_service, DatabaseService
+
+# Funções utilitárias e configurações
+from app.core.config import settings
+from app.core.utils import generate_image_hash
+
+# Configuração do logger para este ficheiro
 logger = logging.getLogger(__name__)
+
+# Criação do router que será incluído na aplicação principal
 router = APIRouter()
 
-@router.post("/image", response_model=AnalysisResponse)
-async def analyze_artwork_image(
-    file: UploadFile = File(..., description="Imagem da obra de arte")
-):
-    """
-    Analisa uma obra de arte através de uma imagem.
-    
-    - **file**: Imagem da obra de arte (JPEG, PNG, WebP)
-    - **max_size**: 10MB
-    """
-    try:
-        # Validação do arquivo
-        if not file.content_type in settings.ALLOWED_IMAGE_TYPES:
-            raise HTTPException(
-                status_code=400, 
-                detail=f"Tipo de arquivo não suportado. Tipos permitidos: {settings.ALLOWED_IMAGE_TYPES}"
-            )
-        
-        # Lê o arquivo
-        image_data = await file.read()
-        
-        if len(image_data) > settings.MAX_FILE_SIZE:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Arquivo muito grande. Tamanho máximo: {settings.MAX_FILE_SIZE // (1024*1024)}MB"
-            )
-        
-        # Verifica se já existe análise para esta imagem
-        image_hash = ai_service._generate_image_hash(image_data)
-        existing_analysis = await analysis_service.get_analysis_by_image_hash(image_hash)
-        
-        if existing_analysis:
-            logger.info(f"Análise encontrada em cache para hash: {image_hash}")
-            return existing_analysis
-        
-        # Realiza a análise com IA
-        logger.info("Iniciando análise de imagem com IA...")
-        analysis_create = await ai_service.analyze_artwork_image(image_data)
-        
-        # Salva a análise na base de dados
-        analysis_response = await analysis_service.create_analysis(analysis_create)
-        
-        logger.info(f"Análise de imagem concluída: {analysis_response.artwork_name}")
-        return analysis_response
-        
-    except Exception as e:
-        logger.error(f"Erro na análise de imagem: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/text", response_model=AnalysisResponse)
-async def analyze_artwork_text(
-    request: AnalysisRequest
+@router.post("/analise-por-nome", response_model=ArtworkAnalysisResponse, tags=["Analysis"])
+async def analyze_artwork_by_name(
+    request: ArtworkAnalysisRequest,
+    db_service: DatabaseService = Depends(get_database_service),
+    groq_service: GroqService = Depends(get_groq_service)
 ):
     """
-    Analisa uma obra de arte através do nome.
-    
-    - **artwork_name**: Nome da obra de arte
+    Analisa uma obra de arte pelo nome, verificando primeiro o cache.
     """
     try:
-        if not request.artwork_name or request.artwork_name.strip() == "":
-            raise HTTPException(
-                status_code=400,
-                detail="Nome da obra de arte é obrigatório"
-            )
+        artwork_name = request.artwork_name.strip()
+        if not artwork_name:
+            raise HTTPException(status_code=400, detail="O nome da obra de arte é obrigatório.")
         
-        # Verifica se já existe análise para este nome
-        existing_analysis = await analysis_service.get_analysis_by_name(request.artwork_name)
+        logger.info(f"🔍 Recebida requisição para analisar por texto: {artwork_name}")
         
-        if existing_analysis:
-            logger.info(f"Análise encontrada em cache para: {request.artwork_name}")
-            return existing_analysis
+        # 1. Verificar se a análise já existe no cache pelo nome
+        cached_analysis = await db_service.get_analysis_by_name(artwork_name)
+        if cached_analysis:
+            logger.info(f"✅ Análise encontrada em cache para: {artwork_name}")
+            return cached_analysis
         
-        # Realiza a análise com IA
-        logger.info(f"Iniciando análise por texto para: {request.artwork_name}")
-        analysis_create = await ai_service.analyze_artwork_text(request.artwork_name)
+        # 2. Se não estiver no cache, gerar nova análise com a IA
+        logger.info(f"🤖 Gerando nova análise com Groq para: {artwork_name}")
+        analysis_data = await groq_service.analyze_artwork(artwork_name)
         
-        # Salva a análise na base de dados
-        analysis_response = await analysis_service.create_analysis(analysis_create)
+        # 3. Salvar a nova análise na base de dados
+        saved_analysis = await db_service.save_analysis(analysis_data)
+        logger.info(f"💾 Análise para '{artwork_name}' salva na base de dados.")
         
-        logger.info(f"Análise por texto concluída: {analysis_response.artwork_name}")
-        return analysis_response
+        return saved_analysis
         
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Erro na análise por texto: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"❌ Erro na análise da obra {request.artwork_name}: {str(e)}")
+        raise HTTPException(status_code=500, detail="Ocorreu um erro interno ao processar a sua solicitação.")
 
-@router.post("/upload", response_model=AnalysisResponse)
-async def upload_and_analyze(
-    file: UploadFile = File(..., description="Imagem da obra de arte"),
-    artwork_name: Optional[str] = Form(None, description="Nome opcional da obra")
+
+@router.post("/analise-por-imagem", response_model=ArtworkAnalysisResponse, tags=["Analysis"])
+async def analyze_artwork_by_image(
+    file: UploadFile = File(..., description="Ficheiro de imagem da obra de arte"),
+    db_service: DatabaseService = Depends(get_database_service),
+    groq_service: GroqService = Depends(get_groq_service)
 ):
     """
-    Endpoint alternativo para upload e análise de imagem.
-    Permite especificar um nome opcional para a obra.
+    Analisa uma obra de arte a partir de uma imagem, com um fluxo de cache inteligente de múltiplos passos.
     """
+    # 1. Validação do ficheiro
+    if not file.content_type in settings.ALLOWED_IMAGE_TYPES:
+        raise HTTPException(
+            status_code=415, 
+            detail=f"Tipo de ficheiro não suportado. Use um dos seguintes: {', '.join(settings.ALLOWED_IMAGE_TYPES)}"
+        )
+
+    image_data = await file.read()
+    if len(image_data) > settings.MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=413,
+            detail=f"Ficheiro muito grande. O tamanho máximo é {settings.MAX_FILE_SIZE // (1024*1024)}MB."
+        )
+
     try:
-        # Validação do arquivo
-        if not file.content_type in settings.ALLOWED_IMAGE_TYPES:
-            raise HTTPException(
-                status_code=400, 
-                detail=f"Tipo de arquivo não suportado. Tipos permitidos: {settings.ALLOWED_IMAGE_TYPES}"
-            )
+        # --- FLUXO DE CACHE INTELIGENTE ---
+
+        # ETAPA 1: Verificar cache pelo HASH da imagem (ficheiro idêntico)
+        image_hash = generate_image_hash(image_data)
+        cached_analysis = await db_service.get_analysis_by_image_hash(image_hash)
+        if cached_analysis:
+            logger.info(f"✅ Análise encontrada em cache pelo HASH da imagem.")
+            return cached_analysis
+
+        # ETAPA 2: Se não encontrou pelo hash, IDENTIFICAR a obra via IA
+        logger.info("🔍 Hash não encontrado. A tentar identificar a obra na imagem...")
+        identification_result = await groq_service.identify_artwork_from_image(image_data)
         
-        # Lê o arquivo
-        image_data = await file.read()
+        if identification_result:
+            artwork_name = identification_result.get("artwork_name")
+            
+            # ETAPA 3: Verificar cache pelo NOME da obra identificada
+            cached_by_name = await db_service.get_analysis_by_name(artwork_name)
+            if cached_by_name:
+                logger.info(f"✅ Obra identificada como '{artwork_name}'. Análise encontrada em cache pelo nome.")
+                # Opcional: Poderíamos associar o hash da nova imagem à análise existente
+                # mas por agora, apenas retornamos a análise encontrada para economizar uma escrita na DB.
+                return cached_by_name
+
+        # ETAPA 4: Se chegou até aqui, é uma obra nova. Fazer a ANÁLISE COMPLETA.
+        logger.info(f"🤖 Nenhuma análise em cache. A gerar nova análise completa para a imagem...")
+        analysis_data = await groq_service.analyze_artwork_from_image(image_data)
         
-        if len(image_data) > settings.MAX_FILE_SIZE:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Arquivo muito grande. Tamanho máximo: {settings.MAX_FILE_SIZE // (1024*1024)}MB"
-            )
+        # Se a IA identificou um nome na etapa de identificação, usamos esse nome
+        # para garantir consistência.
+        if identification_result and identification_result.get("artwork_name"):
+             analysis_data["artwork_name"] = identification_result.get("artwork_name")
+             
+        # Salvar a nova análise na base de dados, associando o hash da imagem
+        saved_analysis = await db_service.save_analysis(analysis_data, image_hash=image_hash)
+        logger.info(f"💾 Nova análise de imagem salva na base de dados.")
         
-        # Verifica cache
-        image_hash = ai_service._generate_image_hash(image_data)
-        existing_analysis = await analysis_service.get_analysis_by_image_hash(image_hash)
-        
-        if existing_analysis:
-            logger.info(f"Análise encontrada em cache para hash: {image_hash}")
-            return existing_analysis
-        
-        # Realiza análise
-        analysis_create = await ai_service.analyze_artwork_image(image_data)
-        
-        # Se foi fornecido um nome, sobrescreve
-        if artwork_name:
-            analysis_create.artwork_name = artwork_name
-        
-        # Salva na base de dados
-        analysis_response = await analysis_service.create_analysis(analysis_create)
-        
-        logger.info(f"Análise de upload concluída: {analysis_response.artwork_name}")
-        return analysis_response
-        
+        return saved_analysis
+
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Erro no upload e análise: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"❌ Erro crítico na análise da imagem: {str(e)}")
+        raise HTTPException(status_code=500, detail="Ocorreu um erro interno ao processar a imagem.")

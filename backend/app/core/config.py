@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     
     # Groq Configuration
     GROQ_API_KEY: str
+    GROQ_IMAGE_API_KEY: str
     
     # MongoDB Configuration
     MONGODB_URI: str = "mongodb://localhost:27017/artell"
@@ -34,6 +35,12 @@ class Settings(BaseSettings):
     GROQ_MODEL: str = "meta-llama/llama-4-scout-17b-16e-instruct"
     GROQ_MAX_TOKENS: int = 1000
     GROQ_TEMPERATURE: float = 0.7
+
+    GROQ_VISION_MODEL: str = '"meta-llama/llama-4-maverick-17b-128e-instruct"'
+    GROQ_VISION_MAX_TOKENS: int = 1000
+    GROQ_VISION_TEMPERATURE: float = 0.7
+
+
     
     class Config:
         env_file = ".env"

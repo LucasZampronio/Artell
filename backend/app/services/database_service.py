@@ -1,50 +1,17 @@
-import logging
-from typing import Optional, List
-from motor.motor_asyncio import AsyncIOMotorClient
-from app.core.config import settings
-from app.models.artwork_analysis import ArtworkAnalysisDB, ArtworkAnalysisResponse
-from functools import lru_cache
-from bson import ObjectId
-
-logger = logging.getLogger(__name__)
-
-class DatabaseService:
-    """Serviço para gerenciar operações na base de dados MongoDB"""
 # backend/app/services/database_service.py
 
 import logging
 from typing import Optional, List
 from motor.motor_asyncio import AsyncIOMotorClient
-from bson import ObjectId  # <--- ADICIONE ESTA LINHA
+from bson import ObjectId
 from app.core.config import settings
-from app.models.artwork_analysis import ArtworkAnalysisDB, ArtworkAnalysisResponse
+from app.models.artwork_analysis import ArtworkAnalysisDB, ArtworkAnalysisResponse, ArtworkAnalysisCreate # Assegure-se de ter o ArtworkAnalysisCreate
 from functools import lru_cache
 
 logger = logging.getLogger(__name__)
 
 class DatabaseService:
     """Serviço para gerenciar operações na base de dados MongoDB"""
-
-    async def get_analysis_by_id(self, analysis_id: str) -> Optional[ArtworkAnalysisResponse]:
-        """Busca uma análise específica na base de dados pelo seu ID."""
-        try:
-            collection = self.db[self.collection_name]
-            if not ObjectId.is_valid(analysis_id):
-                logger.warning(f"Tentativa de busca com ID inválido: {analysis_id}")
-                return None
-            
-            # Agora o ObjectId será reconhecido
-            result = await collection.find_one({"_id": ObjectId(analysis_id)})
-            
-            if result:
-                logger.info(f"Análise encontrada por ID: {analysis_id}")
-                return self._convert_to_response(result, cached=True)
-            
-            return None
-        except Exception as e:
-            logger.error(f"Erro ao buscar análise por ID: {e}")
-            return None
-
         
     def __init__(self):
         self.client: Optional[AsyncIOMotorClient] = None
@@ -54,19 +21,11 @@ class DatabaseService:
     async def connect(self):
         """Conecta à base de dados MongoDB"""
         try:
-            # Usar a URI completa com autenticação
             self.client = AsyncIOMotorClient(settings.MONGODB_URI)
-            
-            # Conectar ao banco artell
             self.db = self.client.artell
-            
-            # Testar conexão
             await self.client.admin.command('ping')
             logger.info("✅ Conectado ao MongoDB com sucesso!")
-            
-            # Criar índices para otimização
             await self._create_indexes()
-            
         except Exception as e:
             logger.error(f"❌ Erro ao conectar ao MongoDB: {e}")
             raise e
@@ -81,151 +40,94 @@ class DatabaseService:
         """Cria índices para otimizar consultas"""
         try:
             collection = self.db[self.collection_name]
-            
-            # Criar índices
             await collection.create_index("artwork_name")
+            await collection.create_index("image_hash") # ✨ Adicionar índice para o hash
             await collection.create_index("created_at")
             await collection.create_index("artist")
-            
             logger.info("✅ Índices criados com sucesso!")
-            
         except Exception as e:
             logger.error(f"❌ Erro ao criar índices: {e}")
-            # Não falhar a aplicação se os índices não puderem ser criados
             logger.warning("⚠️ Aplicação continuará sem índices otimizados")
-    
-    async def get_analysis_by_name(self, artwork_name: str) -> Optional[ArtworkAnalysisResponse]:
+
+    # ✨✨ INÍCIO DO CÓDIGO ADICIONADO ✨✨
+
+    async def get_analysis_by_image_hash(self, image_hash: str) -> Optional[ArtworkAnalysisResponse]:
         """
-        Busca uma análise existente na base de dados
-        
-        Args:
-            artwork_name: Nome da obra de arte
-            
-        Returns:
-            Análise se encontrada, None caso contrário
+        Busca uma análise existente na base de dados pelo hash da imagem.
         """
         try:
             collection = self.db[self.collection_name]
-            
-            # Busca case-insensitive por nome da obra
-            result = await collection.find_one({
-                "artwork_name": {"$regex": f"^{artwork_name}$", "$options": "i"}
-            })
+            result = await collection.find_one({"image_hash": image_hash})
             
             if result:
-                logger.info(f"Análise encontrada em cache para: {artwork_name}")
+                logger.info(f"Análise encontrada em cache pelo hash da imagem: {image_hash[:10]}...")
                 return self._convert_to_response(result, cached=True)
             
             return None
-            
+        except Exception as e:
+            logger.error(f"Erro ao buscar análise por hash de imagem: {e}")
+            return None
+
+    # ✨✨ FIM DO CÓDIGO ADICIONADO ✨✨
+
+    async def get_analysis_by_name(self, artwork_name: str) -> Optional[ArtworkAnalysisResponse]:
+        """Busca uma análise existente na base de dados"""
+        try:
+            collection = self.db[self.collection_name]
+            result = await collection.find_one({
+                "artwork_name": {"$regex": f"^{artwork_name}$", "$options": "i"}
+            })
+            if result:
+                logger.info(f"Análise encontrada em cache para: {artwork_name}")
+                return self._convert_to_response(result, cached=True)
+            return None
         except Exception as e:
             logger.error(f"Erro ao buscar análise por nome: {e}")
             return None
     
-    async def save_analysis(self, analysis_data: dict) -> ArtworkAnalysisResponse:
+    # ✨✨ INÍCIO DO CÓDIGO MODIFICADO ✨✨
+
+    async def save_analysis(self, analysis_data: dict, image_hash: Optional[str] = None) -> ArtworkAnalysisResponse:
         """
-        Salva uma nova análise na base de dados
-        
-        Args:
-            analysis_data: Dados da análise a ser salva
-            
-        Returns:
-            Análise salva com ID e timestamps
+        Salva uma nova análise na base de dados, opcionalmente com um hash de imagem.
         """
         try:
             collection = self.db[self.collection_name]
             
-            # Criar documento para salvar
+            # Adicionar o hash se ele for fornecido
+            if image_hash:
+                analysis_data['image_hash'] = image_hash
+
+            # Usar um modelo Pydantic para garantir que os dados estão corretos antes de inserir
             analysis_doc = ArtworkAnalysisDB(**analysis_data)
             analysis_dict = analysis_doc.dict()
             
-            # Inserir na base de dados
             result = await collection.insert_one(analysis_dict)
             
-            # Atualizar ID e retornar
-            analysis_dict["_id"] = str(result.inserted_id)
+            analysis_dict["_id"] = result.inserted_id
             
             logger.info(f"Análise salva na base de dados: {analysis_data['artwork_name']}")
-            
             return self._convert_to_response(analysis_dict, cached=False)
             
         except Exception as e:
             logger.error(f"Erro ao salvar análise: {e}")
             raise Exception(f"Erro ao salvar análise: {str(e)}")
+
+    # ✨✨ FIM DO CÓDIGO MODIFICADO ✨✨
     
     async def get_recent_analyses(self, limit: int = 10) -> List[ArtworkAnalysisResponse]:
-        """
-        Obtém as análises mais recentes
-        
-        Args:
-            limit: Número máximo de análises a retornar
-            
-        Returns:
-            Lista de análises recentes
-        """
+        """Obtém as análises mais recentes"""
         try:
             collection = self.db[self.collection_name]
-            
             cursor = collection.find().sort("created_at", -1).limit(limit)
-            
-            analyses = []
-            async for doc in cursor:
-                analyses.append(self._convert_to_response(doc, cached=True))
-            
+            analyses = [self._convert_to_response(doc, cached=True) async for doc in cursor]
             return analyses
-            
         except Exception as e:
             logger.error(f"Erro ao buscar análises recentes: {e}")
             return []
     
-    async def get_analysis_stats(self) -> dict:
-        """
-        Obtém estatísticas das análises
-        
-        Returns:
-            Dicionário com estatísticas
-        """
-        try:
-            collection = self.db[self.collection_name]
-            
-            # Total de análises
-            total = await collection.count_documents({})
-            
-            # Análises por artista (top 5)
-            pipeline = [
-                {"$group": {"_id": "$artist", "count": {"$sum": 1}}},
-                {"$sort": {"count": -1}},
-                {"$limit": 5}
-            ]
-            
-            top_artists = []
-            async for doc in collection.aggregate(pipeline):
-                if doc["_id"]:  # Ignorar artistas nulos
-                    top_artists.append({
-                        "artist": doc["_id"],
-                        "count": doc["count"]
-                    })
-            
-            return {
-                "total_analyses": total,
-                "top_artists": top_artists
-            }
-            
-        except Exception as e:
-            logger.error(f"Erro ao buscar estatísticas: {e}")
-            return {"total_analyses": 0, "top_artists": []}
-    
     def _convert_to_response(self, doc: dict, cached: bool) -> ArtworkAnalysisResponse:
-        """
-        Converte documento da base de dados para resposta da API
-        
-        Args:
-            doc: Documento do MongoDB
-            cached: Indica se veio do cache
-            
-        Returns:
-            Objeto ArtworkAnalysisResponse
-        """
+        """Converte documento da base de dados para resposta da API"""
         return ArtworkAnalysisResponse(
             id = str(doc['_id']),
             artwork_name=doc["artwork_name"],
@@ -234,7 +136,7 @@ class DatabaseService:
             year=doc.get("year"),
             style=doc.get("style"),
             emotions=doc.get("emotions", []),
-            processing_time=doc["processing_time"],
+            processing_time=doc.get("processing_time", 0.0), # Adicionar default
             cached=cached
         )
 

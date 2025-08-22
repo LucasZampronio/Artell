@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 from dotenv import load_dotenv
 import logging
-
+from app.routers.analyze import router as analyze_router
 # 2. Importar os modelos e as FUNÇÕES GETTER dos serviços (não as instâncias globais)
 from app.models.artwork_analysis import ArtworkAnalysisRequest, ArtworkAnalysisResponse
 from app.services.groq_service import get_groq_service, GroqService
@@ -39,6 +39,7 @@ app.add_middleware(
 )
 
 # Incluir o router de analyses, que já usa Depends
+app.include_router(analyze_router, tags=["Analysis"])
 app.include_router(analyses_router, prefix="/analyses", tags=["Analyses"])
 
 # 3. Atualizar os eventos de startup e shutdown para usar os getters
@@ -88,41 +89,6 @@ async def health_check(
         "database": "connected" if db_service.client else "disconnected"
     }
 
-@app.post("/analise-por-nome", response_model=ArtworkAnalysisResponse, tags=["Analysis"])
-async def analyze_artwork_by_name(
-    request: ArtworkAnalysisRequest,
-    db_service: DatabaseService = Depends(get_database_service), # Injetar DatabaseService
-    groq_service: GroqService = Depends(get_groq_service) # Injetar GroqService
-):
-    """
-    Analisa uma obra de arte pelo nome usando IA (Groq)
-    """
-    try:
-        artwork_name = request.artwork_name.strip()
-        if not artwork_name:
-            raise HTTPException(status_code=400, detail="Nome da obra de arte é obrigatório")
-        
-        logger.info(f"🔍 Recebida requisição para analisar: {artwork_name}")
-        
-        # Usar as instâncias injetadas (db_service, groq_service)
-        cached_analysis = await db_service.get_analysis_by_name(artwork_name)
-        if cached_analysis:
-            logger.info(f"✅ Análise encontrada em cache para: {artwork_name}")
-            return cached_analysis
-        
-        logger.info(f"🤖 Gerando nova análise com Groq para: {artwork_name}")
-        analysis_data = await groq_service.analyze_artwork(artwork_name)
-        
-        saved_analysis = await db_service.save_analysis(analysis_data)
-        logger.info(f"💾 Análise salva na base de dados: {artwork_name}")
-        
-        return saved_analysis
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"❌ Erro na análise da obra {request.artwork_name}: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Erro interno do servidor: {str(e)}")
 
 # Os endpoints que estavam duplicados (/analises-recentes, /estatisticas) foram removidos
 # pois já estão corretamente definidos e incluídos a partir de 'analyses_router'.
