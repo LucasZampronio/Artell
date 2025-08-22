@@ -190,7 +190,7 @@ class DatabaseService:
             Objeto ArtworkAnalysisResponse
         """
         return ArtworkAnalysisResponse(
-            id = str(doc['_id'])
+            id = str(doc['_id']),
             artwork_name=doc["artwork_name"],
             analysis=doc["analysis"],
             artist=doc.get("artist"),
