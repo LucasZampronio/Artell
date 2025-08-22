@@ -157,5 +157,6 @@ class GroqService:
             "processing_time": processing_time
         }
 
-# Instância global do serviço
-groq_service = GroqService()
+@lru_cache()
+def get_groq_service() -> GroqService:
+    return GroqService()

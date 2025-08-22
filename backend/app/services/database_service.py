@@ -8,7 +8,26 @@ logger = logging.getLogger(__name__)
 
 class DatabaseService:
     """Serviço para gerenciar operações na base de dados MongoDB"""
-    
+
+    async def get_analysis_by_id(self, analysis_id: str) -> Optional[ArtworkAnalysisResponse]:
+        """Busca uma análise específica na base de dados pelo seu ID."""
+        try:
+            collection = self.db[self.collection_name]
+            if not ObjectId.is_valid(analysis_id):
+                logger.warning(f"Tentativa de busca com ID inválido: {analysis_id}")
+                return None
+            
+            result = await collection.find_one({"_id": ObjectId(analysis_id)})
+            
+            if result:
+                logger.info(f"Análise encontrada por ID: {analysis_id}")
+                return self._convert_to_response(result, cached=True)
+            
+            return None
+        except Exception as e:
+            logger.error(f"Erro ao buscar análise por ID: {e}")
+            return None
+        
     def __init__(self):
         self.client: Optional[AsyncIOMotorClient] = None
         self.db = None
@@ -201,5 +220,7 @@ class DatabaseService:
             cached=cached
         )
 
-# Instância global do serviço
-database_service = DatabaseService()
+@lru_cache()
+def get_database_service() -> DatabaseService:
+    """Retorna uma instância singleton do DatabaseService."""
+    return DatabaseService()

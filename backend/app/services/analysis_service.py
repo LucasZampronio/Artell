@@ -2,24 +2,29 @@
 from functools import lru_cache
 from typing import List, Optional, Tuple
 import logging
+from fastapi import Depends
 from app.models.analysis import AnalysisCreate, AnalysisResponse
 from app.services.database_service import database_service # Removido 'get_collection' e importado o 'database_service'
+from app.services.database_service import get_database_service, DatabaseService
+
 
 logger = logging.getLogger(__name__)
 
 class AnalysisService:
+    def __init__(self, db_service: DatabaseService = Depends(get_database_service)):
+        self.db_service = db_service
     """
     Este serviço age como uma camada de lógica de negócio,
     delegando as operações de base de dados para o 'database_service'.
     """
-    @lru_cache()
-    def get_analysis_service() -> AnalysisService:
-        """
-        Cria e retorna uma instância singleton do AnalysisService.
-        O lru_cache garante que a mesma instância seja reutilizada em todo o pedido.
-        """
-        return AnalysisService()   
+    async def create_analysis(self, analysis: AnalysisCreate) -> AnalysisResponse:
+        # Usar a instância injetada
+        return await self.db_service.save_analysis(analysis.dict())
     
+    async def get_analysis_by_id(self, analysis_id: str) -> Optional[AnalysisResponse]:
+        # Usar a instância injetada
+        return await self.db_service.get_analysis_by_id(analysis_id)
+    # ... (adapte as outras funções para usar self.db_service)
 
     async def create_analysis(self, analysis: AnalysisCreate) -> AnalysisResponse:
         """Cria uma nova análise na base de dados"""
@@ -117,3 +122,11 @@ class AnalysisService:
         except Exception as e:
             logger.error(f"Erro ao remover análise no service: {e}")
             raise e
+        
+@lru_cache()
+def get_analysis_service() -> AnalysisService:
+    """
+    Cria e retorna uma instância singleton do AnalysisService.
+    O lru_cache garante que a mesma instância seja reutilizada em todo o pedido.
+    """
+    return AnalysisService()
