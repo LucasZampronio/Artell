@@ -1,8 +1,10 @@
+// frontend/src/pages/AnalysisResult.tsx
+
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Heart, Eye, Palette, Calendar, Clock, ArrowLeft, Share2, Bookmark, Star } from 'lucide-react'
+import { Palette, Calendar, Clock, ArrowLeft, Share2, Bookmark, Star } from 'lucide-react'
 
-// Interface atualizada para corresponder à resposta da API
+// Interface para os dados da análise (continua correta)
 interface AnalysisData {
   id: string;
   artwork_name: string;
@@ -16,13 +18,12 @@ interface AnalysisData {
 }
 
 const AnalysisResult = () => {
-  const { id } = useParams<{ id: string }>() // Obtém o ID da URL
+  const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const [analysis, setAnalysis] = useState<AnalysisData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // ✨ LÓGICA CORRIGIDA: Este useEffect agora busca os dados reais da API ✨
   useEffect(() => {
     if (!id) {
       setError("ID da análise não encontrado na URL.")
@@ -33,11 +34,11 @@ const AnalysisResult = () => {
     const fetchAnalysisData = async () => {
       setIsLoading(true)
       try {
-        // A URL agora aponta para o endpoint que busca pelo ID
         const response = await fetch(`http://localhost:8001/analyses/${id}`)
         
         if (!response.ok) {
-          throw new Error('Não foi possível carregar a análise. Tente novamente mais tarde.')
+          const errorData = await response.json();
+          throw new Error(errorData.detail || 'Não foi possível carregar a análise.')
         }
         
         const data: AnalysisData = await response.json()
@@ -50,11 +51,9 @@ const AnalysisResult = () => {
     }
 
     fetchAnalysisData()
-  }, [id]) // A busca é refeita sempre que o ID na URL muda
+  }, [id])
 
-  // O resto do seu componente (lógica de emoções, renderização, etc.) pode ser mantido,
-  // mas vamos ajustar para usar 'artwork_name'
-
+  // Lógica para emoções
   const emotionLabels: Record<string, string> = {
     awe: "Deslumbramento",
     melancholy: "Melancolia",
@@ -66,10 +65,11 @@ const AnalysisResult = () => {
     excitement: "Excitação",
     peace: "Paz",
     curiosity: "Curiosidade"
+    // Adicione mais se necessário
   }
 
   const getEmotionColor = (emotion: string) => {
-    const colors = {
+    const colors: Record<string, string> = {
       awe: "bg-purple-100 text-purple-800",
       melancholy: "bg-blue-100 text-blue-800",
       wonder: "bg-yellow-100 text-yellow-800",
@@ -81,9 +81,10 @@ const AnalysisResult = () => {
       peace: "bg-teal-100 text-teal-800",
       curiosity: "bg-orange-100 text-orange-800"
     }
-    return colors[emotion as keyof typeof colors] || "bg-gray-100 text-gray-800"
+    return colors[emotion] || "bg-gray-100 text-gray-800"
   }
 
+  // Ecrãs de Loading e Erro
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -98,7 +99,7 @@ const AnalysisResult = () => {
   if (error || !analysis) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
+        <div className="text-center max-w-md mx-auto">
           <p className="text-red-600 mb-4">{error || "Não foi possível encontrar a análise."}</p>
           <button
             onClick={() => navigate('/')}
@@ -111,11 +112,11 @@ const AnalysisResult = () => {
     )
   }
 
-  // O seu JSX de renderização estava ótimo, só precisa de usar 'artwork_name'
+  // ✨ CÓDIGO ADICIONADO ABAIXO ✨
+  // Componente principal com os dados
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
         <div className="mb-8">
           <button
             onClick={() => navigate('/')}
@@ -124,21 +125,74 @@ const AnalysisResult = () => {
             <ArrowLeft className="w-5 h-5 mr-2" />
             Voltar ao Início
           </button>
-          
-          <div className="bg-white rounded-2xl p-8 shadow-lg border border-gray-100">
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Coluna Principal da Análise */}
+          <div className="lg:col-span-2 bg-white rounded-2xl p-8 shadow-lg border border-gray-100">
             <div className="text-center mb-8">
-              <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-                {analysis.artwork_name} 
+              <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4 font-serif">
+                {analysis.artwork_name}
               </h1>
-              
               {analysis.artist && (
-                <p className="text-2xl text-gray-600 mb-4">
+                <p className="text-2xl text-gray-600">
                   por <span className="font-semibold text-primary-600">{analysis.artist}</span>
                 </p>
               )}
-              
-             {/* ... O resto do seu código JSX continua aqui, sem alterações ... */}
-             
+            </div>
+
+            {/* Conteúdo da Análise */}
+            <div className="prose prose-lg max-w-none text-gray-700 leading-relaxed whitespace-pre-line">
+              {analysis.analysis}
+            </div>
+          </div>
+
+          {/* Coluna de Metadados */}
+          <div className="space-y-6">
+            <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+              <h3 className="text-xl font-bold mb-4 text-gray-800">Detalhes da Obra</h3>
+              <ul className="space-y-3 text-gray-600">
+                {analysis.artist && (
+                  <li className="flex items-center">
+                    <Palette className="w-5 h-5 mr-3 text-primary-500" />
+                    <strong>Artista:</strong><span className="ml-2">{analysis.artist}</span>
+                  </li>
+                )}
+                {analysis.year && (
+                  <li className="flex items-center">
+                    <Calendar className="w-5 h-5 mr-3 text-primary-500" />
+                    <strong>Ano:</strong><span className="ml-2">{analysis.year}</span>
+                  </li>
+                )}
+                {analysis.style && (
+                  <li className="flex items-center">
+                    <Palette className="w-5 h-5 mr-3 text-primary-500" />
+                    <strong>Estilo:</strong><span className="ml-2">{analysis.style}</span>
+                  </li>
+                )}
+              </ul>
+            </div>
+            
+            <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+              <h3 className="text-xl font-bold mb-4 text-gray-800">Emoções Evocadas</h3>
+              <div className="flex flex-wrap gap-2">
+                {analysis.emotions.length > 0 ? analysis.emotions.map((emotion) => (
+                  <span
+                    key={emotion}
+                    className={`px-3 py-1 rounded-full text-sm font-medium ${getEmotionColor(emotion)}`}
+                  >
+                    {emotionLabels[emotion] || emotion}
+                  </span>
+                )) : <p className="text-sm text-gray-500">Nenhuma emoção primária identificada.</p>}
+              </div>
+            </div>
+
+            <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+                <h3 className="text-xl font-bold mb-4 text-gray-800">Ações</h3>
+                <div className="flex space-x-2">
+                    <button className="flex-1 btn-secondary inline-flex items-center justify-center"><Share2 className="w-4 h-4 mr-2"/> Partilhar</button>
+                    <button className="flex-1 btn-secondary inline-flex items-center justify-center"><Bookmark className="w-4 h-4 mr-2"/> Salvar</button>
+                </div>
             </div>
           </div>
         </div>
