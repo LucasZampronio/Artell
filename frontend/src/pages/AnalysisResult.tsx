@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Palette, Calendar, Clock, ArrowLeft, Share2, Bookmark, Star } from 'lucide-react'
+import { Palette, Calendar, ArrowLeft, Share2, Bookmark } from 'lucide-react'
 
-// Interface para os dados da análise (continua correta)
+// Adicionar 'image_url' à interface
 interface AnalysisData {
   id: string;
   artwork_name: string;
@@ -13,8 +13,7 @@ interface AnalysisData {
   year?: string;
   style?: string;
   emotions: string[];
-  processing_time: number;
-  cached: boolean;
+  image_url?: string; // <-- NOVO CAMPO
 }
 
 const AnalysisResult = () => {
@@ -53,7 +52,7 @@ const AnalysisResult = () => {
     fetchAnalysisData()
   }, [id])
 
-  // Lógica para emoções
+  // Funções para loading, erro e emoções
   const emotionLabels: Record<string, string> = {
     awe: "Deslumbramento",
     melancholy: "Melancolia",
@@ -65,7 +64,6 @@ const AnalysisResult = () => {
     excitement: "Excitação",
     peace: "Paz",
     curiosity: "Curiosidade"
-    // Adicione mais se necessário
   }
 
   const getEmotionColor = (emotion: string) => {
@@ -84,7 +82,6 @@ const AnalysisResult = () => {
     return colors[emotion] || "bg-gray-100 text-gray-800"
   }
 
-  // Ecrãs de Loading e Erro
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -103,7 +100,7 @@ const AnalysisResult = () => {
           <p className="text-red-600 mb-4">{error || "Não foi possível encontrar a análise."}</p>
           <button
             onClick={() => navigate('/')}
-            className="btn-primary"
+            className="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700"
           >
             Voltar ao Início
           </button>
@@ -112,8 +109,6 @@ const AnalysisResult = () => {
     )
   }
 
-  // ✨ CÓDIGO ADICIONADO ABAIXO ✨
-  // Componente principal com os dados
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -128,7 +123,6 @@ const AnalysisResult = () => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Coluna Principal da Análise */}
           <div className="lg:col-span-2 bg-white rounded-2xl p-8 shadow-lg border border-gray-100">
             <div className="text-center mb-8">
               <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4 font-serif">
@@ -141,13 +135,22 @@ const AnalysisResult = () => {
               )}
             </div>
 
-            {/* Conteúdo da Análise */}
+            {/* Renderização da Imagem da Obra de Arte */}
+            {analysis.image_url && (
+              <div className="mb-8 rounded-lg overflow-hidden shadow-md border">
+                <img 
+                  src={analysis.image_url} 
+                  alt={`Obra de arte: ${analysis.artwork_name}`}
+                  className="w-full h-auto object-contain max-h-[500px]" 
+                />
+              </div>
+            )}
+
             <div className="prose prose-lg max-w-none text-gray-700 leading-relaxed whitespace-pre-line">
               {analysis.analysis}
             </div>
           </div>
 
-          {/* Coluna de Metadados */}
           <div className="space-y-6">
             <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
               <h3 className="text-xl font-bold mb-4 text-gray-800">Detalhes da Obra</h3>
@@ -176,7 +179,7 @@ const AnalysisResult = () => {
             <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
               <h3 className="text-xl font-bold mb-4 text-gray-800">Emoções Evocadas</h3>
               <div className="flex flex-wrap gap-2">
-                {analysis.emotions.length > 0 ? analysis.emotions.map((emotion) => (
+                {analysis.emotions && analysis.emotions.length > 0 ? analysis.emotions.map((emotion) => (
                   <span
                     key={emotion}
                     className={`px-3 py-1 rounded-full text-sm font-medium ${getEmotionColor(emotion)}`}
@@ -190,8 +193,8 @@ const AnalysisResult = () => {
             <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
                 <h3 className="text-xl font-bold mb-4 text-gray-800">Ações</h3>
                 <div className="flex space-x-2">
-                    <button className="flex-1 btn-secondary inline-flex items-center justify-center"><Share2 className="w-4 h-4 mr-2"/> Partilhar</button>
-                    <button className="flex-1 btn-secondary inline-flex items-center justify-center"><Bookmark className="w-4 h-4 mr-2"/> Salvar</button>
+                    <button className="flex-1 inline-flex items-center justify-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"><Share2 className="w-4 h-4 mr-2"/> Partilhar</button>
+                    <button className="flex-1 inline-flex items-center justify-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"><Bookmark className="w-4 h-4 mr-2"/> Salvar</button>
                 </div>
             </div>
           </div>

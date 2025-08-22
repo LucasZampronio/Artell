@@ -28,6 +28,7 @@ class ArtworkAnalysisCreate(BaseModel):
     emotions: Optional[List[str]] = None
     processing_time: float
     image_hash: Optional[str] = None # Para associar a análise a uma imagem
+    image_url: Optional[str] = None 
 
 # ✨✨ FIM DO CÓDIGO ADICIONADO ✨✨
 
@@ -55,6 +56,7 @@ class ArtworkAnalysisCreate(BaseModel):
     emotions: Optional[List[str]] = None
     processing_time: float
     image_hash: Optional[str] = None
+    image_url: Optional[str] = None 
 
 class ArtworkAnalysisDB(BaseModel):
     """Modelo que representa um documento na coleção do MongoDB."""
@@ -66,6 +68,7 @@ class ArtworkAnalysisDB(BaseModel):
     emotions: Optional[List[str]] = None
     processing_time: float
     image_hash: Optional[str] = Field(None, description="Hash SHA-256 da imagem analisada")
+    image_url: Optional[str] = None 
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     

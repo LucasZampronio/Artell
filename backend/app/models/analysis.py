@@ -31,6 +31,7 @@ class Emotion(str, Enum):
     EXCITEMENT = "excitement"
     MELANCHOLY = "melancholy"
     AWE = "awe"
+    OTHER = 'other'
 
 class AnalysisRequest(BaseModel):
     """Modelo para requisições de análise"""
