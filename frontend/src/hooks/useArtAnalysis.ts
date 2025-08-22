@@ -1,19 +1,23 @@
 import { useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 
+// Interface para a requisição, que já estava correta.
 interface AnalysisRequest {
   artwork_name: string
 }
 
+// ✨ CORREÇÃO 1: A interface de resposta foi atualizada
+// para corresponder ao que o seu backend envia (com 'id' e 'artwork_name').
 interface AnalysisResponse {
-  artwork: string
-  analysis: string
-  artist?: string
-  year?: string
-  style?: string
-  emotions: string[]
-  processing_time: number
-  cached: boolean
+  id: string; // Adicionado o ID retornado pela API
+  artwork_name: string; // Corrigido de 'artwork' para 'artwork_name' para consistência
+  analysis: string;
+  artist?: string;
+  year?: string;
+  style?: string;
+  emotions: string[];
+  processing_time: number;
+  cached: boolean;
 }
 
 interface UseArtAnalysisReturn {
@@ -66,8 +70,13 @@ export const useArtAnalysis = (): UseArtAnalysisReturn => {
       const result: AnalysisResponse = await response.json()
       setAnalysis(result)
       
-      // Redirecionar para página de resultado
-      navigate(`/analysis/${Date.now()}`) // Usar timestamp como ID temporário
+      // ✨ CORREÇÃO 2: A navegação agora usa o ID real retornado pela API
+      // em vez de um timestamp. Isso torna a URL estável e recarregável.
+      if (result.id) {
+        navigate(`/analysis/${result.id}`)
+      } else {
+        throw new Error("A resposta da API não continha um ID de análise.")
+      }
       
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Erro desconhecido na análise'
