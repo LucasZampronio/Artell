@@ -4,6 +4,21 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from app.core.config import settings
 from app.models.artwork_analysis import ArtworkAnalysisDB, ArtworkAnalysisResponse
 from functools import lru_cache
+from bson import ObjectId
+
+logger = logging.getLogger(__name__)
+
+class DatabaseService:
+    """Serviço para gerenciar operações na base de dados MongoDB"""
+# backend/app/services/database_service.py
+
+import logging
+from typing import Optional, List
+from motor.motor_asyncio import AsyncIOMotorClient
+from bson import ObjectId  # <--- ADICIONE ESTA LINHA
+from app.core.config import settings
+from app.models.artwork_analysis import ArtworkAnalysisDB, ArtworkAnalysisResponse
+from functools import lru_cache
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +33,7 @@ class DatabaseService:
                 logger.warning(f"Tentativa de busca com ID inválido: {analysis_id}")
                 return None
             
+            # Agora o ObjectId será reconhecido
             result = await collection.find_one({"_id": ObjectId(analysis_id)})
             
             if result:
@@ -28,6 +44,7 @@ class DatabaseService:
         except Exception as e:
             logger.error(f"Erro ao buscar análise por ID: {e}")
             return None
+
         
     def __init__(self):
         self.client: Optional[AsyncIOMotorClient] = None
