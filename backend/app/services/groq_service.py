@@ -79,7 +79,7 @@ class GroqService:
     
     def _build_powerful_analysis_prompt(self, artwork_name: str) -> str:
         return f"""
-        Aja como um analista de arte cultural. Sua tarefa é desvendar a mensagem central por trás da obra "{artwork_name}".
+        Aja como um analista de arte cultural. Sua tarefa é dar um breve resumo e desvendar a mensagem central por trás da obra."{artwork_name}".
 
         Responda OBRIGATORIAMENTE com um objeto JSON válido com a estrutura:
         {{
@@ -89,7 +89,7 @@ class GroqService:
           "style": "Estilo Artístico",
           "analysis": "Uma análise profunda da obra.",
           "emotions": ["lista", "de", "3 a 5", "emoções", "chave"],
-          "image_url": "URL público e acessível de uma imagem da obra de arte. O link DEVE ser direto para o ficheiro da imagem (terminando em .jpg, .png, ou .webp) Não retorne um link para uma página web."
+          "image_url": " NÃO PEGUE IMAGENS DA WIKIPEDIA E COM THUMB. tente buscar o URL público e acessível de uma imagem da obra de arte. Se não puder encontrar um URL de ficheiro direto deixe este campo como null."
         }}
         NÃO inclua markdown (```json ... ```) ou qualquer outro texto fora do objeto JSON.
         """
