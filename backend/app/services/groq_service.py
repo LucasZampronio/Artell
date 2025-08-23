@@ -77,22 +77,26 @@ class GroqService:
             logger.error(f"Erro ao identificar obra na imagem: {str(e)}")
             return None
     
+
+# ...
+
     def _build_powerful_analysis_prompt(self, artwork_name: str) -> str:
         return f"""
-        Aja como um analista de arte cultural. Sua tarefa é dar um breve resumo e desvendar a mensagem central por trás da obra."{artwork_name}".
+        Aja como um analista de arte cultural. A sua tarefa é dar um breve resumo da obra e desvendar a mensagem central por trás da obra "{artwork_name}".
 
-        Responda OBRIGATORIAMENTE com um objeto JSON válido com a estrutura:
+        Responda OBRIGATORIAMENTE com um objeto JSON válido com a seguinte estrutura:
         {{
           "artwork_name": "Nome da Obra (confirmado pela IA)",
           "artist": "Nome do Artista",
           "year": "Ano de Criação",
           "style": "Estilo Artístico",
-          "analysis": "Uma análise profunda da obra.",
+          "analysis": "Uma análise profunda da obra, explicando o contexto, a técnica e a intenção do artista.",
           "emotions": ["lista", "de", "3 a 5", "emoções", "chave"],
-          "image_url": " NÃO PEGUE IMAGENS DA WIKIPEDIA E COM THUMB. tente buscar o URL público e acessível de uma imagem da obra de arte. Se não puder encontrar um URL de ficheiro direto deixe este campo como null."
+          "image_url": "O URL público e acessível de uma imagem de alta qualidade da obra de arte. O link DEVE apontar diretamente para o ficheiro da imagem (terminando em .jpg, .png, ou .webp). NÃO USE NADA DA WIKIPEDIA OU QUE TENHA ESSE TIPO DE ENDEREÇO https://upload.wikimedia.org/wikipedia/commons/thumb/0/0a/Guernica.jpg/1024px-Guernica.jpg. NÃO retorne URLs de páginas HTML ou que contenham a palavra 'thumb'. Se não puder encontrar um URL que cumpra estes requisitos, deixe este campo como null."
         }}
         NÃO inclua markdown (```json ... ```) ou qualquer outro texto fora do objeto JSON.
         """
+# ...
 
     def _build_identification_prompt(self) -> str:
         """Cria um prompt simples e direto para apenas identificar a obra."""
